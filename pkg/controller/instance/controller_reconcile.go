@@ -250,6 +250,16 @@ func (igr *instanceGraphReconciler) handleResourceCreation(
 
 	// Apply labels and create resource
 	igr.instanceSubResourcesLabeler.ApplyLabels(resource)
+
+	// Apply OwnerReferences
+	instance := igr.runtime.GetInstance()
+	resource.SetOwnerReferences([]metav1.OwnerReference{{
+		APIVersion: instance.GetAPIVersion(),
+		Kind:       instance.GetKind(),
+		Name:       instance.GetName(),
+		UID:        instance.GetUID(),
+	}})
+
 	if _, err := rc.Create(ctx, resource, metav1.CreateOptions{}); err != nil {
 		resourceState.State = ResourceStateError
 		resourceState.Err = fmt.Errorf("failed to create resource: %w", err)
@@ -300,6 +310,9 @@ func (igr *instanceGraphReconciler) updateResource(
 	// TODO: Handle annotations
 	desired.SetResourceVersion(observed.GetResourceVersion())
 	desired.SetFinalizers(observed.GetFinalizers())
+	desired.SetOwnerReferences(observed.GetOwnerReferences())
+	desired.SetAnnotations(observed.GetAnnotations())
+
 	_, err = rc.Update(ctx, desired, metav1.UpdateOptions{})
 	if err != nil {
 		resourceState.State = ResourceStateError
